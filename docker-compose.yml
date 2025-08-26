@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # Next.js Frontend
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://casino_user:casino_password@db:5432/casino_db
+      - REDIS_URL=redis://redis:6379
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - FIREBLOCKS_API_KEY=${FIREBLOCKS_API_KEY}
+      - FIREBLOCKS_PRIVATE_KEY_PATH=/app/fireblocks_secret.key
+    depends_on:
+      - db
+      - redis
+    networks:
+      - casino_network
+    command: sh -c "pnpm install && pnpm prisma generate && pnpm prisma db push && pnpm run dev"
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: casino_postgres
+    environment:
+      POSTGRES_DB: casino_db
+      POSTGRES_USER: casino_user
+      POSTGRES_PASSWORD: casino_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - casino_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casino_user -d casino_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Caching & Nonce Management
+  redis:
+    image: redis:7-alpine
+    container_name: casino_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - casino_network
+    command: redis-server --appendonly yes --requirepass casino_redis_password
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # GraphQL API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - DATABASE_URL=postgresql://casino_user:casino_password@db:5432/casino_db
+      - REDIS_URL=redis://:redis_password@redis:6379
+      - JWT_SECRET=development-jwt-secret-change-in-production
+      - FRONTEND_URL=http://localhost:3000
+      - FIREBLOCKS_API_KEY=${FIREBLOCKS_API_KEY}
+      - FIREBLOCKS_PRIVATE_KEY_PATH=${FIREBLOCKS_PRIVATE_KEY_PATH}
+      - FIREBLOCKS_OMNIBUS_VAULT_ID=${FIREBLOCKS_OMNIBUS_VAULT_ID:-0}
+      - FIREBLOCKS_WITHDRAWAL_VAULT_ID=${FIREBLOCKS_WITHDRAWAL_VAULT_ID:-1}
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: pnpm run server:dev
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  casino_network:
+    driver: bridge
