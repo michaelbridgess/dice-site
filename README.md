@@ -102,29 +102,3 @@ npm run server:dev   # GraphQL API (port 4000)
 cd python-blockcypher && python src/api_service.py  # BlockCypher service (port 8000)
 ```
 
-## Project Structure
-
-```
-├── app/                    # Next.js 13+ app directory
-├── components/             # React components
-│   ├── game-interface/     # Dice game UI
-│   ├── Chat/              # Real-time chat
-│   └── ui/                # Reusable UI components
-├── hooks/                 # Custom React hooks
-├── lib/                   # Core business logic
-│   ├── graphql/           # GraphQL resolvers & schema
-│   ├── ledger/            # Double-entry accounting
-│   ├── security/          # Rate limiting & fraud detection
-│   ├── monitoring/        # Financial monitoring
-│   └── audit/             # Compliance & audit trails
-├── python-blockcypher/    # Python microservice
-│   └── src/
-│       ├── api_service.py     # Clean FastAPI service
-│       ├── wallet_manager.py  # Wallet operations
-│       ├── transaction_manager.py # Transaction handling
-│       ├── models.py          # Pydantic models
-│       └── utils.py           # Utility functions
-└── prisma/                # Database schema & migrations
-```
-
-## 
